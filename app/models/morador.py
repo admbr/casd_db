@@ -11,6 +11,7 @@ class MoradorBase(SQLModel):
     celular: Optional[str]
     email: Optional[str]
     admin: int = Field(default=0)
+    inscrito: bool = Field(default=False)
 
 
 class MoradorRead(MoradorBase):
