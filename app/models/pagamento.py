@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field
 
 
 class PagamentoBase(SQLModel):
-    customer_id: str = Field(unique=True)
+    customer_id: str
     id_asaas: str
     deleted: bool
     description: Optional[str]
@@ -18,7 +18,7 @@ class PagamentoBase(SQLModel):
     netvalue: float
     originalduedate: date
     paymentdate: Optional[date]
-    billingtype: str
+    billingtype: Optional[str]
 
 
 class PagamentoRead(PagamentoBase):
@@ -30,4 +30,4 @@ class PagamentoCreate(PagamentoBase):
 
 
 class Pagamentos_asaas(PagamentoBase, table=True):
-    id: int
+    id: int | None = Field(default=None, primary_key=True)

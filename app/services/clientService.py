@@ -10,8 +10,9 @@ from app.models.cliente import ClienteBase, ClienteCreate, ClienteRead, Clientes
 from app.src.asaas import AsaasClient
 
 
-class ClientService(BaseModel):
-    asaas_client: AsaasClient
+class ClientService:
+    def __init__(self, asaas_client: AsaasClient):
+        self.asaas_client = asaas_client
 
     async def fetch_clients_from_asaas(self) -> list[ClienteCreate]:
         return await self.asaas_client.list_all_customers()

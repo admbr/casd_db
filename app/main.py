@@ -9,7 +9,7 @@ from app.src.asaas import AsaasClient
 
 
 @asynccontextmanager
-async def lifspan(app: FastAPI):
+async def lifespan(app: FastAPI):
     await init_db()
 
     global asaas_client_conn
@@ -29,6 +29,6 @@ async def lifspan(app: FastAPI):
     await asaas_client_conn.aclose()
 
 
-app = FastAPI(title="test", version="1.0.0", lifespan=lifspan)
+app = FastAPI(title="test", version="1.0.0", lifespan=lifespan)
 
 app.include_router(router=api_router, prefix="/api/v1")

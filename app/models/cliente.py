@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field
 
 class ClienteBase(SQLModel):
     deleted: bool
-    email: str
+    email: Optional[str]
     id_morador: Optional[int]
     name: str
     cpfcnpj: Optional[str] = Field(index=True)

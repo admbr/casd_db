@@ -4,6 +4,10 @@ import httpx
 from fastapi import HTTPException, status
 from app.models.cliente import ClienteCreate
 from app.models.pagamento import PagamentoCreate
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AsaasClient:
@@ -17,11 +21,26 @@ class AsaasClient:
         data: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         try:
-            response = await self.client.request(method, endpoint, json=data)
+            if method.upper() == "GET":
+                response = await self.client.request(method, endpoint, params=data)
+            else:
+                response = await self.client.request(method, endpoint, json=data)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            error_detail = e.response.json() if e.response.content else e.response.text
+            try:
+                error_detail = e.response.json()
+            except (json.JSONDecodeError, ValueError):
+                error_detail = e.response.text
+
+            logger.error(
+                "Asaas API error %s on %s %s: %r",
+                e.response.status_code,
+                method,
+                endpoint,
+                error_detail,
+            )
+
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail={"message": "Asaas API Error", "error": error_detail},
@@ -41,7 +60,7 @@ class AsaasClient:
     ) -> dict[str, Any]:
         batch_size = 1
         offset = 0
-        while batch_size > 1:
+        while batch_size >= 1:
             response = await self._request(
                 "GET",
                 "/customers",
@@ -89,7 +108,7 @@ class AsaasClient:
                             deleted=customer["deleted"],
                             email=customer["email"],
                             name=customer["name"],
-                            cpfcnpj=customer["cpfcnpj"],
+                            cpfcnpj=customer["cpfCnpj"],
                             datecreated=customer["dateCreated"],
                             notificationdisabled=customer["notificationDisabled"],
                             idcliente=customer["id"],

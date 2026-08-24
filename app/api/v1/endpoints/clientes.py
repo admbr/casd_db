@@ -20,14 +20,14 @@ async def read_clients(
     return results.scalars().all()
 
 
-@router.post("/")
+@router.put("/")
 async def update_pagamentos(
     billing_service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_session),
 ):
     clients = await billing_service.fetch_clients_from_asaas()
 
-    await session.execute(text("TRUNCATE TABLE item RESTART IDENTITY CASCADE;"))
+    await session.execute(text("TRUNCATE TABLE clientes RESTART IDENTITY CASCADE;"))
 
     session.add_all([Clientes(**client.model_dump()) for client in clients])
 

@@ -9,8 +9,9 @@ from app.src.asaas import AsaasClient
 from typing import Any
 
 
-class BillingService(BaseModel):
-    asaas_client: AsaasClient
+class BillingService:
+    def __init__(self, asaas_client: AsaasClient):
+        self.asaas_client = asaas_client
 
     async def fetch_all_payments_from_asaas(self) -> list[PagamentoCreate]:
         return await self.asaas_client.list_all_payments()
