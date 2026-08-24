@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[MoradorRead])
-async def read_items(
+async def read_moradores(
     offset: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_session),

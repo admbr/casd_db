@@ -5,12 +5,12 @@ from sqlmodel import SQLModel, Field
 
 class PagamentoBase(SQLModel):
     customer_id: str = Field(unique=True)
+    id_asaas: str
     deleted: bool
     description: Optional[str]
     value: float
     status: str
     clientpaymentdate: Optional[date]
-    confirmeddate: Optional[date]
     datecreated: date
     duedate: date
     invoicenumber: int
@@ -18,10 +18,11 @@ class PagamentoBase(SQLModel):
     netvalue: float
     originalduedate: date
     paymentdate: Optional[date]
+    billingtype: str
 
 
 class PagamentoRead(PagamentoBase):
-    id: str = Field(unique=True)
+    id: int
 
 
 class PagamentoCreate(PagamentoBase):
@@ -29,4 +30,4 @@ class PagamentoCreate(PagamentoBase):
 
 
 class Pagamentos_asaas(PagamentoBase, table=True):
-    id: Optional[str] = Field(default=None, primary_key=True)
+    id: int

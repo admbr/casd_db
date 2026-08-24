@@ -2,7 +2,6 @@ from typing import Optional, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 import httpx
 from fastapi import HTTPException, status
-from app.src.config import settings
 from app.models.cliente import ClienteCreate
 from app.models.pagamento import PagamentoCreate
 
@@ -97,6 +96,8 @@ class AsaasClient:
                             id_morador=None,
                         )
                     )
+            else:
+                return clients
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def list_all_payments(self) -> list[PagamentoCreate]:
@@ -117,11 +118,11 @@ class AsaasClient:
                 for payment in data:
                     payments.append(
                         PagamentoCreate(
+                            id_asaas=payment["id"],
                             customer_id=payment["customer"],
                             deleted=payment["deleted"],
                             value=payment["value"],
                             clientpaymentdate=payment["clientPaymentDate"],
-                            confirmeddate=None,
                             datecreated=payment["dateCreated"],
                             duedate=payment["dueDate"],
                             invoicenumber=payment["invoiceNumber"],
@@ -131,8 +132,11 @@ class AsaasClient:
                             paymentdate=payment["paymentDate"],
                             description=payment["description"],
                             status=payment["status"],
+                            billingtype=payment["billingType"],
                         )
                     )
+            else:
+                return payments
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def del_payment_by_id(self, id: str) -> dict[str, Any]:
