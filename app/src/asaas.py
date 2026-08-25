@@ -56,7 +56,6 @@ class AsaasClient:
         self,
         nome: str,
         cpf_cnpj: str,
-        email: str,
     ) -> dict[str, Any]:
         batch_size = 1
         offset = 0
@@ -79,7 +78,6 @@ class AsaasClient:
         payload = {
             "name": nome,
             "cpfCnpj": cpf_cnpj,
-            "email": email,
             "notificationDisabled": True,
         }
         client = await self._request("POST", "/customers", data=payload)
@@ -167,18 +165,36 @@ class AsaasClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def create_payment(
-        self, customer_id: str, payment: PagamentoCreate
-    ) -> dict[str, Any]:
+        self,
+        payment_in: PagamentoCreate,
+    ) -> PagamentoCreate:
         payload = {
-            "customer": customer_id,
+            "customer": payment_in.customer_id,
             "billingType": "BOLETO",
-            "value": payment.value,
-            "dueDate": payment.duedate.isoformat(),
-            "description": payment.description,
+            "value": payment_in.value,
+            "dueDate": payment_in.duedate.isoformat(),
+            "description": payment_in.description,
             "postalService": False,
         }
-        return await self._request(
+        payment = await self._request(
             "POST",
             "/payments",
             data=payload,
+        )
+        return PagamentoCreate(
+            id_asaas=payment["id"],
+            customer_id=payment["customer"],
+            deleted=payment["deleted"],
+            value=payment["value"],
+            clientpaymentdate=payment["clientPaymentDate"],
+            datecreated=payment["dateCreated"],
+            duedate=payment["dueDate"],
+            invoicenumber=payment["invoiceNumber"],
+            invoiceurl=payment["invoiceUrl"],
+            netvalue=payment["netValue"],
+            originalduedate=payment["originalDueDate"],
+            paymentdate=payment["paymentDate"],
+            description=payment["description"],
+            status=payment["status"],
+            billingtype=payment["billingType"],
         )

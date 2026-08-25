@@ -4,14 +4,14 @@ from sqlmodel import SQLModel, Field
 
 
 class ClienteBase(SQLModel):
-    deleted: bool
-    email: Optional[str]
-    id_morador: Optional[int]
     name: str
-    cpfcnpj: Optional[str] = Field(index=True)
+    deleted: bool
     datecreated: date
     notificationdisabled: bool
     idcliente: str = Field(unique=True)
+    email: Optional[str]
+    id_morador: Optional[int]
+    cpfcnpj: Optional[str] = Field(index=True)
 
 
 class ClienteRead(ClienteBase):

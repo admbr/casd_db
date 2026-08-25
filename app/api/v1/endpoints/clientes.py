@@ -20,17 +20,23 @@ async def read_clients(
     return results.scalars().all()
 
 
-@router.put("/")
-async def update_pagamentos(
-    billing_service: ClientService = Depends(get_client_service),
-    session: AsyncSession = Depends(get_session),
+@router.get("/", response_model=ClienteRead)
+async def read_client_by_cpf(
+    cpf: str,
+    client_service: ClientService = Depends(get_client_service),
 ):
-    clients = await billing_service.fetch_clients_from_asaas()
+    return await client_service.fetch_client_by_cpf(cpf=cpf)
 
-    await session.execute(text("TRUNCATE TABLE clientes RESTART IDENTITY CASCADE;"))
 
-    session.add_all([Clientes(**client.model_dump()) for client in clients])
+@router.put("/")
+async def update_clients(
+    client_service: ClientService = Depends(get_client_service),
+):
+    return await client_service.update_clients()
 
-    await session.commit()
 
-    return {"synced": len(clients), "status": "ok"}
+@router.post("/", response_model=ClienteRead)
+async def get_or_create_client(
+    nome: str, cpf: str, client_service: ClientService = Depends(get_client_service)
+):
+    return await client_service.get_or_create_client(name=nome, cpf=cpf)
