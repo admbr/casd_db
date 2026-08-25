@@ -30,7 +30,7 @@ async def update_pagamentos(
 
 
 @router.post("/", response_model=PagamentoRead)
-async def crete_payment(
+async def create_payment(
     customer_id: str,
     value: float,
     due_date: date,
@@ -38,7 +38,6 @@ async def crete_payment(
     description: Optional[str] = None,
     apartamento_id: Optional[int] = None,
     billing_service: BillingService = Depends(get_billing_service),
-    session: AsyncSession = Depends(get_session),
 ):
     return await billing_service.create_payment(
         PagamentoCreate(

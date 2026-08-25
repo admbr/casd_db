@@ -8,6 +8,21 @@ from app.src.asaas import AsaasClient
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, text
+from fastapi import Request, HTTPException, status
+from app.models.cartao import (
+    CartaoBase,
+    CartaoCreate,
+    CartaoRead,
+    Cartoes,
+    CardHolderInfo,
+    CardInfo,
+)
+from app.models.assinatura import (
+    AssinaturaBase,
+    AssinaturaCreate,
+    AssinaturaRead,
+    Assinaturas,
+)
 
 
 class BillingService:
@@ -71,3 +86,83 @@ class BillingService:
             "skipped": len(skipped),
             "skipped_customer_ids": list(set(skipped)),
         }
+
+    async def tokenize_card(
+        self,
+        customer_id: str,
+        card: CardInfo,
+        cardholder: CardHolderInfo,
+        request: Request,
+    ) -> CartaoCreate:
+        if not request.client:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"request.client returned falsy",
+            )
+        result = await self.asaas_client.tokenize_credit_card(
+            customer_id=customer_id,
+            credit_card=card.model_dump(),
+            holder_info=cardholder.model_dump(),
+            remote_ip=request.client.host,
+        )
+        cartao = CartaoCreate(
+            token=result["creditCardToken"],
+            brand=result["creditCardToken"],
+            customer_id=customer_id,
+            last_digits=result["creditCardNumber"],
+        )
+        try:
+            self.db_session.add(Cartoes(**cartao.model_dump()))
+            await self.db_session.commit()
+            await self.db_session.refresh(Cartoes(**cartao.model_dump()))
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error: {e}"
+            )
+        return cartao
+
+    async def create_subscription(
+        self,
+        customer_id: str,
+        value: float,
+        next_due_date: str,
+        cycle: str,
+        description: str,
+        credit_card_token: str,
+        remote_ip: str,
+    ) -> Assinaturas:
+        statement = select(Cartoes).where(Cartoes.token == credit_card_token)
+        result = await self.db_session.execute(statement)
+        cartao = result.scalars().first()
+
+        if not cartao:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Card token not found",
+            )
+
+        response = await self.asaas_client.create_subscription(
+            customer_id=customer_id,
+            value=value,
+            next_due_date=next_due_date,
+            cycle=cycle,
+            description=description,
+            credit_card_token=cartao.token,
+            remote_ip=remote_ip,
+        )
+
+        assinatura = Assinaturas(
+            id_asaas=response["id"],
+            id_customer=customer_id,
+            value=value,
+            cycle=cycle,
+            status=response["status"],
+            next_due_date=next_due_date,
+            description=description,
+            billing_type=response["billingType"],
+        )
+        self.db_session.add(assinatura)
+        await self.db_session.commit()
+        await self.db_session.refresh(assinatura)
+
+        return assinatura

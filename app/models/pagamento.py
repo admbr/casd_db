@@ -25,7 +25,7 @@ class PagamentoBase(SQLModel):
     @field_validator("billingtype", mode="before")
     @classmethod
     def adjust_billing_type(cls, value: str | None) -> str:
-        if value != "BOLEOT" and value != "PIX" and value != "CREDIT_CARD":
+        if value not in ("BOLETO", "PIX", "CREDIT_CARD"):
             return "UNDEFINED"
         return value
 

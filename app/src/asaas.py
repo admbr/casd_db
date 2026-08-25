@@ -157,11 +157,7 @@ class AsaasClient:
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def del_payment_by_id(self, id: str) -> dict[str, Any]:
-        return await self._request(
-            "DELETE",
-            "/payments",
-            data={"id": id},
-        )
+        return await self._request("DELETE", f"/payments/{id}")
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def create_payment(
@@ -170,7 +166,7 @@ class AsaasClient:
     ) -> PagamentoCreate:
         payload = {
             "customer": payment_in.customer_id,
-            "billingType": "BOLETO",
+            "billingType": payment_in.billingtype,
             "value": payment_in.value,
             "dueDate": payment_in.duedate.isoformat(),
             "description": payment_in.description,
@@ -198,3 +194,50 @@ class AsaasClient:
             status=payment["status"],
             billingtype=payment["billingType"],
         )
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    async def tokenize_credit_card(
+        self,
+        customer_id: str,
+        credit_card: dict,
+        holder_info: dict,
+        remote_ip: str,
+    ) -> dict[str, Any]:
+        payload = {
+            "customer": customer_id,
+            "creditCard": credit_card,
+            "creditCardHolderInfo": holder_info,
+            "remoteIp": remote_ip,
+        }
+        return await self._request("POST", "/creditCard/tokenize", data=payload)
+
+    async def create_subscription(
+        self,
+        customer_id: str,
+        value: float,
+        next_due_date: str,
+        description: str,
+        credit_card_token: str,
+        remote_ip: str,
+        cycle: str = "MONTHLY",
+    ) -> dict[str, Any]:
+        payload = {
+            "customer": customer_id,
+            "billingType": "CREDIT_CARD",
+            "value": value,
+            "nextDueDate": next_due_date,
+            "cycle": cycle,
+            "description": description,
+            "creditCardToken": credit_card_token,
+            "remoreIp": remote_ip,
+        }
+        return await self._request("POST", "/subscription", data=payload)
+
+    async def cancel_subscription(self, subscription_id: str) -> dict[str, Any]:
+        return await self._request("DELETE", f"subscriptions/{subscription_id}")
+
+    async def get_subscription(self, subscription_id: str) -> dict[str, Any]:
+        return await self._request("GET", f"/subscriptions/{subscription_id}")
+
+    async def list_subscription_payments(self, subscription_id: str) -> dict[str, Any]:
+        return await self._request("GET", f"/subscriptions/{subscription_id}/payments")
