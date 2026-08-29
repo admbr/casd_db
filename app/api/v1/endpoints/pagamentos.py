@@ -11,22 +11,11 @@ from typing import Optional
 router = APIRouter()
 
 
-@router.get("/", response_model=list[PagamentoRead])
-async def read_pagamentos(
-    offset: int = 0,
-    limit: int = 100,
-    session: AsyncSession = Depends(get_session),
+@router.get("/", response_model=PagamentoRead)
+async def read_payment_by_id(
+    id: int, billing_service: BillingService = Depends(get_billing_service)
 ):
-    statement = select(Pagamentos_asaas).offset(offset).limit(limit)
-    results = await session.execute(statement)
-    return results.scalars().all()
-
-
-@router.put("/")
-async def update_pagamentos(
-    billing_service: BillingService = Depends(get_billing_service),
-):
-    return await billing_service.update_pagamentos()
+    return await billing_service.get_payment_by_id(id=id)
 
 
 @router.post("/", response_model=PagamentoRead)
@@ -42,11 +31,10 @@ async def create_payment(
     return await billing_service.create_payment(
         PagamentoCreate(
             customer_id=customer_id,
-            billingtype=billing_type,
+            billing_type=billing_type,
             value=value,
-            duedate=due_date,
+            due_date=due_date,
             description=description,
-            apartamento_id=apartamento_id,
         )
     )
 
@@ -57,3 +45,26 @@ async def delete_payment(
     billing_service: BillingService = Depends(get_billing_service),
 ):
     return await billing_service.delete_payment_by_id(id=id)
+
+
+@router.get("/intervalo", response_model=list[PagamentoRead])
+async def read_pagamentos(
+    offset: int = 0,
+    limit: int = 100,
+    session: AsyncSession = Depends(get_session),
+):
+    statement = select(Pagamentos_asaas).offset(offset).limit(limit)
+    results = await session.execute(statement)
+    return results.scalars().all()
+
+
+@router.get("/apartamento/", response_model=list[PagamentoRead])
+async def read_pagamentos_from_ap_id():
+    return
+
+
+@router.put("/update_all")
+async def update_pagamentos(
+    billing_service: BillingService = Depends(get_billing_service),
+):
+    return await billing_service.update_pagamentos()

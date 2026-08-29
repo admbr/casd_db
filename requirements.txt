@@ -13,4 +13,5 @@ python-dotenv
 asyncpg
 tenacity
 jinja2
-smtplib
+plotly
+requests

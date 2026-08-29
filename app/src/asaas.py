@@ -106,11 +106,11 @@ class AsaasClient:
                             deleted=customer["deleted"],
                             email=customer["email"],
                             name=customer["name"],
-                            cpfcnpj=customer["cpfCnpj"],
-                            datecreated=customer["dateCreated"],
-                            notificationdisabled=customer["notificationDisabled"],
-                            idcliente=customer["id"],
-                            id_morador=None,
+                            cpf_cnpj=customer["cpfCnpj"],
+                            date_created=customer["dateCreated"],
+                            notification_disabled=customer["notificationDisabled"],
+                            cliente_id=customer["id"],
+                            morador_id=None,
                         )
                     )
             else:
@@ -135,21 +135,22 @@ class AsaasClient:
                 for payment in data:
                     payments.append(
                         PagamentoCreate(
-                            id_asaas=payment["id"],
+                            asaas_id=payment["id"],
                             customer_id=payment["customer"],
                             deleted=payment["deleted"],
                             value=payment["value"],
-                            clientpaymentdate=payment["clientPaymentDate"],
-                            datecreated=payment["dateCreated"],
-                            duedate=payment["dueDate"],
-                            invoicenumber=payment["invoiceNumber"],
-                            invoiceurl=payment["invoiceUrl"],
-                            netvalue=payment["netValue"],
-                            originalduedate=payment["originalDueDate"],
-                            paymentdate=payment["paymentDate"],
+                            client_payment_date=payment["clientPaymentDate"],
+                            date_created=payment["dateCreated"],
+                            due_date=payment["dueDate"],
+                            invoice_number=payment["invoiceNumber"],
+                            invoice_url=payment["invoiceUrl"],
+                            net_value=payment["netValue"],
+                            original_due_date=payment["originalDueDate"],
+                            payment_date=payment["paymentDate"],
                             description=payment["description"],
                             status=payment["status"],
-                            billingtype=payment["billingType"],
+                            billing_type=payment["billingType"],
+                            bank_slip_url=payment["bankSlipUrl"],
                         )
                     )
             else:
@@ -159,6 +160,9 @@ class AsaasClient:
     async def del_payment_by_id(self, id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/payments/{id}")
 
+    async def del_client_by_id(self, id: str) -> dict[str, Any]:
+        return await self._request("DELETE", f"/customers/{id}")
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
     async def create_payment(
         self,
@@ -166,9 +170,9 @@ class AsaasClient:
     ) -> PagamentoCreate:
         payload = {
             "customer": payment_in.customer_id,
-            "billingType": payment_in.billingtype,
+            "billingType": payment_in.billing_type,
             "value": payment_in.value,
-            "dueDate": payment_in.duedate.isoformat(),
+            "dueDate": payment_in.due_date.isoformat(),
             "description": payment_in.description,
             "postalService": False,
         }
@@ -178,21 +182,21 @@ class AsaasClient:
             data=payload,
         )
         return PagamentoCreate(
-            id_asaas=payment["id"],
+            asaas_id=payment["id"],
             customer_id=payment["customer"],
             deleted=payment["deleted"],
             value=payment["value"],
-            clientpaymentdate=payment["clientPaymentDate"],
-            datecreated=payment["dateCreated"],
-            duedate=payment["dueDate"],
-            invoicenumber=payment["invoiceNumber"],
-            invoiceurl=payment["invoiceUrl"],
-            netvalue=payment["netValue"],
-            originalduedate=payment["originalDueDate"],
-            paymentdate=payment["paymentDate"],
+            client_payment_date=payment["clientPaymentDate"],
+            date_created=payment["dateCreated"],
+            due_date=payment["dueDate"],
+            invoice_number=payment["invoiceNumber"],
+            invoice_url=payment["invoiceUrl"],
+            net_value=payment["netValue"],
+            original_due_date=payment["originalDueDate"],
+            payment_date=payment["paymentDate"],
             description=payment["description"],
             status=payment["status"],
-            billingtype=payment["billingType"],
+            billing_type=payment["billingType"],
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))

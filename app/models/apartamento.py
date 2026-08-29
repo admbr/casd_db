@@ -18,4 +18,4 @@ class ApartamentoCreate(ApartamentoBase):
 class Apartamentos(ApartamentoBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    moradores: list["Moradores"] = Relationship(back_populates="owner")  # type: ignore
+    habitantes: list["Moradores"] = Relationship(back_populates="moradia")  # type: ignore

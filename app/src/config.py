@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     database_url: str = "database_url"
 
     asaas_api_key: str = "asaas_api_key"
+    aeita_asaas_api_key: str = "aeita_asaas_api_key"
     asaas_base_url: str = "asaas_base_url"
 
     gmail_user: str = "gmail_user"

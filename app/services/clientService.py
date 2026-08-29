@@ -22,8 +22,8 @@ class ClientService:
     async def fetch_clients_from_asaas(self) -> list[ClienteCreate]:
         return await self.asaas_client.list_all_customers()
 
-    async def fetch_client_by_cpf(self, cpf: str) -> Clientes:
-        statement = select(Clientes).where(Clientes.cpfcnpj == cpf)
+    async def fetch_client_by_id(self, id: int) -> ClienteRead:
+        statement = select(Clientes).where(Clientes.id == id)
 
         # Use session.exec() with await, then .first()
         result = await self.db_session.execute(statement)
@@ -36,7 +36,23 @@ class ClientService:
                 detail="Cliente not found",
             )
 
-        return cliente
+        return ClienteRead(**cliente.model_dump())
+
+    async def fetch_client_by_cpf(self, cpf: str) -> ClienteRead:
+        statement = select(Clientes).where(Clientes.cpf_cnpj == cpf)
+
+        # Use session.exec() with await, then .first()
+        result = await self.db_session.execute(statement)
+        cliente = result.scalars().first()
+
+        # Handle missing record
+        if not cliente:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente not found",
+            )
+
+        return ClienteRead(**cliente.model_dump())
 
     async def update_clients(self) -> dict[str, Any]:
         clients = await self.fetch_clients_from_asaas()
@@ -53,17 +69,18 @@ class ClientService:
 
     async def get_or_create_client(self, name: str, cpf: str) -> Clientes:
         response = await self.asaas_client.get_or_create_customer(
-            nome=name, cpf_cnpj=cpf
+            nome=name,
+            cpf_cnpj=cpf,
         )
         cliente = Clientes(
             name=response["name"],
             deleted=response["deleted"],
-            datecreated=response["dateCreated"],
-            notificationdisabled=response["notificationDisabled"],
-            idcliente=response["id"],
+            date_created=response["dateCreated"],
+            notification_disabled=response["notificationDisabled"],
+            cliente_id=response["id"],
             email=response["email"],
-            id_morador=None,
-            cpfcnpj=response["cpfCnpj"],
+            morador_id=None,
+            cpf_cnpj=response["cpfCnpj"],
         )
 
         self.db_session.add(cliente)
@@ -71,3 +88,8 @@ class ClientService:
         await self.db_session.refresh(cliente)
 
         return cliente
+
+    async def delete_client_by_id(self, id: int) -> dict[str, Any]:
+        return await self.asaas_client.del_client_by_id(
+            (await self.fetch_client_by_id(id)).cliente_id
+        )

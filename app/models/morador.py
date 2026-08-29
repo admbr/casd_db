@@ -1,17 +1,22 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
+
+if TYPE_CHECKING:
+    from app.models.cliente import Clientes
+    from app.models.apartamento import Apartamentos
 
 
 class MoradorBase(SQLModel):
-    nome: str = Field()
+    nome: str
     apelido: Optional[str] = None
-    id_apartamento: int = Field(foreign_key="apartamentos.id")
-    cpf: str = Field(unique=True, index=True)
+    apartamento_id: int = Field(foreign_key="apartamentos.id")
+    cpf: Optional[str] = Field(index=True)
     turma: str
     celular: Optional[str]
     email: Optional[str]
     admin: int = Field(default=0)
     inscrito: bool = Field(default=False)
+    senha: Optional[str]
 
 
 class MoradorRead(MoradorBase):
@@ -19,10 +24,11 @@ class MoradorRead(MoradorBase):
 
 
 class MoradorCreate(MoradorBase):
-    senha: Optional[str]
+    pass
 
 
 class Moradores(MoradorBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
-    owner: Optional["Apartamentos"] = Relationship(back_populates="moradores")  # type: ignore
+    moradia: Optional["Apartamentos"] = Relationship(back_populates="habitantes")
+    contas: list["Clientes"] = Relationship(back_populates="dono")

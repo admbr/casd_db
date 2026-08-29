@@ -1,7 +1,10 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import date
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from app.models.cliente import Clientes
 
 
 class CardInfo(BaseModel):
@@ -25,7 +28,7 @@ class CartaoBase(SQLModel):
     token: str = Field(unique=True, index=True)
     brand: str
     last_digits: str
-    customer_id: str
+    customer_id: str = Field(foreign_key="clientes.cliente_id")
 
 
 class CartaoRead(CartaoBase):
@@ -38,3 +41,5 @@ class CartaoCreate(CartaoBase):
 
 class Cartoes(CartaoBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+
+    dono: Optional["Clientes"] = Relationship(back_populates="cartoes")

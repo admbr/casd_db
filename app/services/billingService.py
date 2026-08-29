@@ -56,6 +56,19 @@ class BillingService:
 
         return payment
 
+    async def get_payment_by_id(self, id: int) -> Pagamentos_asaas:
+        statement = select(Pagamentos_asaas).where(Pagamentos_asaas.id == id)
+
+        payment = (await self.db_session.execute(statement)).scalars().first()
+
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pagamento not found",
+            )
+
+        return payment
+
     async def update_pagamentos(self) -> dict[str, Any]:
         payments = await self.fetch_all_payments_from_asaas()
 
@@ -63,7 +76,7 @@ class BillingService:
             text("TRUNCATE TABLE pagamentos_asaas RESTART IDENTITY CASCADE;")
         )
 
-        result = await self.db_session.execute(text("SELECT idcliente FROM clientes"))
+        result = await self.db_session.execute(text("SELECT cliente_id FROM clientes"))
         valid_ids = {row[0] for row in result.all()}
         valid_payments = []
         skipped = []
@@ -152,8 +165,8 @@ class BillingService:
         )
 
         assinatura = Assinaturas(
-            id_asaas=response["id"],
-            id_customer=customer_id,
+            asaas_id=response["id"],
+            customer_id=customer_id,
             value=value,
             cycle=cycle,
             status=response["status"],
