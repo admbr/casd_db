@@ -1,10 +1,6 @@
-numpy
-scipy
-pandas
 httpx
 fastapi
 sqlmodel
-streamlit
 uvicorn
 pydantic
 pydantic-settings

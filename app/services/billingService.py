@@ -7,6 +7,7 @@ from app.models.pagamento import (
 from app.src.asaas import AsaasClient
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import select, text
 from fastapi import Request, HTTPException, status
 from app.models.cartao import (
@@ -72,14 +73,10 @@ class BillingService:
     async def update_pagamentos(self) -> dict[str, Any]:
         payments = await self.fetch_all_payments_from_asaas()
 
-        await self.db_session.execute(
-            text("TRUNCATE TABLE pagamentos_asaas RESTART IDENTITY CASCADE;")
-        )
-
         result = await self.db_session.execute(text("SELECT cliente_id FROM clientes"))
         valid_ids = {row[0] for row in result.all()}
-        valid_payments = []
-        skipped = []
+
+        valid_payments, skipped = [], []
         for payment in payments:
             data = payment.model_dump()
             if data["customer_id"] not in valid_ids:
@@ -87,11 +84,19 @@ class BillingService:
                 continue
             valid_payments.append(data)
 
-        self.db_session.add_all(
-            [Pagamentos_asaas(**payment) for payment in valid_payments]
-        )
-
-        await self.db_session.commit()
+        if valid_payments:
+            stmt = pg_insert(Pagamentos_asaas).values(valid_payments)
+            update_cols = {
+                col: stmt.excluded[col]
+                for col in valid_payments[0].keys()
+                if col != "asaas_id"
+            }
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["asaas_id"],
+                set_=update_cols,
+            )
+            await self.db_session.execute(stmt)
+            await self.db_session.commit()
 
         return {
             "synced": len(payments),

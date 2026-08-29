@@ -9,6 +9,7 @@ from app.models.apartamento import (
 from app.models.cliente import ClienteBase, ClienteCreate, ClienteRead, Clientes
 from app.src.asaas import AsaasClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import text, select
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
@@ -57,12 +58,24 @@ class ClientService:
     async def update_clients(self) -> dict[str, Any]:
         clients = await self.fetch_clients_from_asaas()
 
-        await self.db_session.execute(
-            text("TRUNCATE TABLE clientes RESTART IDENTITY CASCADE;")
+        if not clients:
+            return {"synced": 0, "status": "ok"}
+
+        rows = [client.model_dump() for client in clients]
+
+        statement = pg_insert(Clientes).values(rows)
+        update_cols = {
+            col: statement.excluded[col]
+            for col in rows[0].keys()
+            if col not in ("client_id", "morador_id")
+        }
+
+        statement = statement.on_conflict_do_update(
+            index_elements=["cliente_id"],
+            set_=update_cols,
         )
 
-        self.db_session.add_all([Clientes(**client.model_dump()) for client in clients])
-
+        await self.db_session.execute(statement)
         await self.db_session.commit()
 
         return {"synced": len(clients), "status": "ok"}
