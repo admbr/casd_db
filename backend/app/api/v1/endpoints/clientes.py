@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select, text
+from sqlmodel import select, text, or_, col
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.src.database import get_session
 from app.models.cliente import Clientes, ClienteRead, ClienteCreate, ClienteBase
@@ -9,6 +9,25 @@ from app.api.v1.deps import get_client_service
 from app.api.v1.deps import get_billing_service
 
 router = APIRouter()
+
+
+@router.get("/buscar", response_model=list[ClienteRead])
+async def search_clientes(
+    q: str,
+    limit: int = 20,
+    session: AsyncSession = Depends(get_session),
+):
+    if len(q.strip()) < 2:
+        return []
+
+    term = f"%{q.strip()}%"
+    statement = (
+        select(Clientes)
+        .where(or_(col(Clientes.name).ilike(term), col(Clientes.cpf_cnpj).ilike(term)))
+        .limit(limit)
+    )
+    results = await session.execute(statement)
+    return results.scalars().all()
 
 
 @router.get("/", response_model=ClienteRead)

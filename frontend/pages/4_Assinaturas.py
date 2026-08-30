@@ -1,56 +1,78 @@
-from datetime import date
-
+import pandas as pd
 import streamlit as st
 
-from api import assinaturas as assinaturas_api
+from api import notificar as notificar_api
+from api import pagamentos as pagamentos_api
 from api.client import ApiError
 from components.sidebar import render_sidebar
 from components.theme import inject_css
-from components.ui import show_api_error
+from components.ui import empty_state, show_api_error
 from config import settings
 
-st.set_page_config(page_title=f"Assinaturas · {settings.APP_TITLE}", page_icon="📄", layout="wide")
+st.set_page_config(
+    page_title=f"Notificar · {settings.APP_TITLE}", page_icon="🔔", layout="wide"
+)
 inject_css()
 render_sidebar()
 
-st.title("📄 Assinaturas")
-st.caption("Cadastro de assinaturas recorrentes (cobrança automática via cartão).")
+st.title("🔔 Notificar cobranças")
+st.caption("Envia notificação (e-mail) aos clientes referente a cobranças específicas.")
 
-st.info(
-    "A API atualmente disponibiliza apenas a criação de assinaturas — "
-    "consulta e listagem ainda não foram implementadas no backend."
-)
+# Was: a free-text textarea for comma-separated payment ids, typed from
+# memory, with no way to see which charges were actually pending before
+# sending. Now: a real table of pending/overdue charges with checkboxes.
 
-CYCLES = ["WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY", "SEMIANNUALLY", "YEARLY"]
+if "notif_data" not in st.session_state:
+    try:
+        # TODO backend: add a status filter to /pagamentos/intervalo so this
+        # doesn't have to pull a batch and filter client-side.
+        batch = pagamentos_api.list_pagamentos(offset=0, limit=500)
+    except ApiError as err:
+        show_api_error(err)
+        batch = []
+    st.session_state["notif_data"] = [
+        p for p in batch if (p.get("status") or "").upper() in ("PENDING", "OVERDUE")
+    ]
 
-with st.form("nova_assinatura_form"):
-    c1, c2 = st.columns(2)
-    customer_id = c1.text_input("ID do cliente (Asaas) *")
-    token = c2.text_input("Token do cartão *", help="Token de cartão já tokenizado no Asaas.")
+pendentes = st.session_state.get("notif_data") or []
 
-    c3, c4 = st.columns(2)
-    value = c3.number_input("Valor (R$) *", min_value=0.0, step=10.0, format="%.2f")
-    cycle = c4.selectbox("Ciclo de cobrança *", options=CYCLES, index=2)
+if not pendentes:
+    empty_state("Nenhuma cobrança pendente ou vencida no momento.")
+else:
+    df = pd.DataFrame(pendentes)[
+        ["id", "customer_id", "value", "due_date", "status", "description"]
+    ]
+    df.insert(0, "Notificar", False)
 
-    c5, c6 = st.columns(2)
-    next_due_date = c5.date_input("Próximo vencimento *", value=date.today())
-    description = c6.text_input("Descrição")
+    edited = st.data_editor(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        disabled=["id", "customer_id", "value", "due_date", "status", "description"],
+        column_config={"Notificar": st.column_config.CheckboxColumn(required=True)},
+        key="notif_editor",
+    )
 
-    submitted = st.form_submit_button("Criar assinatura")
-    if submitted:
-        if not customer_id or not token or value <= 0:
-            st.warning("Preencha os campos obrigatórios (*).")
-        else:
-            try:
-                created = assinaturas_api.create_assinatura(
-                    customer_id=customer_id,
-                    value=value,
-                    cycle=cycle,
-                    next_due_date=next_due_date.isoformat(),
-                    token=token,
-                    description=description or "",
-                )
-                st.success(f"Assinatura criada (id {created.get('id')}).")
-                st.json(created)
-            except ApiError as err:
-                show_api_error(err)
+    selecionados = edited[edited["Notificar"]]
+
+    if len(selecionados) > 0:
+        st.info(
+            f"Você está prestes a notificar **{len(selecionados)}** cobrança(s), "
+            f"totalizando **R$ {selecionados['value'].sum():.2f}**."
+        )
+
+    if st.button("🔔 Notificar selecionadas", disabled=len(selecionados) == 0):
+        ids = selecionados["id"].astype(int).tolist()
+        try:
+            with st.spinner("Enviando notificações..."):
+                result = notificar_api.notify_payments(ids)
+            st.success(f"Notificação disparada para {len(ids)} cobrança(s).")
+            if result:
+                st.json(result)
+            st.session_state.pop("notif_data", None)
+        except ApiError as err:
+            show_api_error(err)
+
+if st.button("🔄 Atualizar lista de pendências"):
+    st.session_state.pop("notif_data", None)
+    st.rerun()

@@ -34,7 +34,9 @@ def create_pagamento(
     )
 
 
-def delete_pagamento(pagamento_id: str) -> Any:
+def delete_pagamento(pagamento_id: int) -> Any:
+    # Takes the local db id now — the backend resolves the corresponding
+    # Asaas payment id internally instead of the caller having to know it.
     return delete("/pagamentos/", {"id": pagamento_id})
 
 

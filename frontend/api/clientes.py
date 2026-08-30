@@ -13,6 +13,10 @@ def get_cliente_by_cpf(cpf: str) -> Any:
     return get("/clientes/cpf", {"cpf": cpf})
 
 
+def search_clientes(query: str) -> Any:
+    return get("/clientes/buscar", {"q": query})
+
+
 def list_clientes(offset: int = 0, limit: int = 100) -> Any:
     return get("/clientes/intervalo", {"offset": offset, "limit": limit})
 
