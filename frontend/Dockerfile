@@ -19,4 +19,4 @@ EXPOSE 8501
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
 
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "Inicio.py", "--server.port=8501", "--server.address=0.0.0.0"]
