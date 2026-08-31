@@ -21,21 +21,12 @@ st.caption("Consulte e cadastre moradores vinculados aos apartamentos.")
 tab_list, tab_search, tab_new = st.tabs(["📋 Listar", "🔍 Buscar", "➕ Cadastrar"])
 
 with tab_list:
-    col1, col2, col3 = st.columns([1, 1, 2])
-    offset = col1.number_input(
-        "Offset", min_value=0, value=0, step=10, key="mor_offset"
-    )
-    limit = col2.number_input(
-        "Limite", min_value=1, max_value=500, value=50, step=10, key="mor_limit"
-    )
-    if col3.button("🔄 Atualizar lista", key="mor_refresh"):
+    if st.button("🔄 Atualizar lista", key="mor_refresh"):
         st.session_state.pop("moradores_data", None)
 
     if "moradores_data" not in st.session_state:
         try:
-            st.session_state["moradores_data"] = moradores_api.list_moradores(
-                offset=int(offset), limit=int(limit)
-            )
+            st.session_state["moradores_data"] = moradores_api.list_moradores()
         except ApiError as err:
             show_api_error(err)
             st.session_state["moradores_data"] = []

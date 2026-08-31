@@ -4,6 +4,7 @@ from app.src.asaas import AsaasClient
 from app.services.billingService import BillingService
 from app.services.clientService import ClientService
 from app.services.notifyService import NotifyService
+from app.services.moradorService import MoradorService
 from app.src.database import get_session
 
 
@@ -33,3 +34,9 @@ def get_notify_service(
     db_session: AsyncSession = Depends(get_session),
 ) -> NotifyService:
     return NotifyService(db_session=db_session)
+
+
+def get_morador_service(
+    db_session: AsyncSession = Depends(get_session),
+) -> MoradorService:
+    return MoradorService(db_session=db_session)
