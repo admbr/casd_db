@@ -5,7 +5,7 @@ from app.models.pagamento import (
     PagamentoCreate,
 )
 from app.src.asaas import AsaasClient
-from typing import Any
+from typing import Any, Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import select, text
@@ -125,14 +125,15 @@ class BillingService:
         )
         cartao = CartaoCreate(
             token=result["creditCardToken"],
-            brand=result["creditCardToken"],
+            brand=result["creditCardBrand"],
             customer_id=customer_id,
             last_digits=result["creditCardNumber"],
         )
         try:
-            self.db_session.add(Cartoes(**cartao.model_dump()))
+            db_cartao = Cartoes(**cartao.model_dump())
+            self.db_session.add(db_cartao)
             await self.db_session.commit()
-            await self.db_session.refresh(Cartoes(**cartao.model_dump()))
+            await self.db_session.refresh(db_cartao)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error: {e}"
@@ -184,3 +185,70 @@ class BillingService:
         await self.db_session.refresh(assinatura)
 
         return assinatura
+
+    async def list_assinaturas(
+        self, customer_id: str | None = None
+    ) -> list[Assinaturas]:
+        statement = select(Assinaturas)
+        if customer_id:
+            statement = statement.where(Assinaturas.customer_id == customer_id)
+        result = await self.db_session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_assinatura_by_id(self, id: int) -> Assinaturas:
+        statement = select(Assinaturas).where(Assinaturas.id == id)
+        result = await self.db_session.execute(statement)
+        assinatura = result.scalars().first()
+
+        if not assinatura:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Assinatura not found"
+            )
+
+        return assinatura
+
+    async def cancel_assinatura(self, id: int) -> Assinaturas:
+        assinatura = await self.get_assinatura_by_id(id)
+
+        if assinatura.asaas_id:
+            await self.asaas_client.cancel_subscription(assinatura.asaas_id)
+
+        assinatura.status = "CANCELLED"
+        self.db_session.add(assinatura)
+        await self.db_session.commit()
+        await self.db_session.refresh(assinatura)
+
+        return assinatura
+
+    async def process_asaas_webhook(self, payload: dict[str, Any]) -> dict[str, Any]:
+        event = payload.get("event", "")
+        payment = payload.get("payment")
+
+        if not event.startswith("PAYMENT_") or not payment:
+            return {"handled": False, "reason": "not a payment event"}
+
+        asaas_id = payment.get("id")
+        if not asaas_id:
+            return {"handled": False, "reason": "missing payment id"}
+
+        statement = select(Pagamentos_asaas).where(
+            Pagamentos_asaas.asaas_id == asaas_id
+        )
+        result = await self.db_session.execute(statement)
+        pagamento = result.scalars().first()
+
+        if not pagamento:
+            return {"handled": False, "reason": "payment not found locally"}
+
+        pagamento.status = payment.get("status", pagamento.status)
+        pagamento.payment_date = payment.get("paymentDate") or pagamento.payment_date
+        pagamento.client_payment_date = (
+            payment.get("clientPaymentDate") or pagamento.client_payment_date
+        )
+        pagamento.net_value = payment.get("netValue", pagamento.net_value)
+        pagamento.invoice_url = payment.get("invoiceUrl", pagamento.invoice_url)
+
+        self.db_session.add(pagamento)
+        await self.db_session.commit()
+
+        return {"handled": True, "event": event, "asaas_id": asaas_id}

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     asaas_api_key: str = "asaas_api_key"
     aeita_asaas_api_key: str = "aeita_asaas_api_key"
     asaas_base_url: str = "asaas_base_url"
+    asaas_webhook_token: str = ""
 
     gmail_user: str = "gmail_user"
     gmail_password: str = "gmail_password"

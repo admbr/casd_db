@@ -6,6 +6,7 @@ from app.api.v1.endpoints import assinaturas
 from app.api.v1.endpoints import notificar
 from app.api.v1.endpoints import apartamentos
 from app.api.v1.endpoints import cartoes
+from app.api.v1.endpoints import webhooks
 
 api_router = APIRouter()
 
@@ -20,3 +21,4 @@ api_router.include_router(
     apartamentos.router, prefix="/apartamentos", tags=["Apartamentos"]
 )
 api_router.include_router(cartoes.router, prefix="/cartoes", tags=["Cartoes"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])

@@ -233,7 +233,7 @@ class AsaasClient:
             "cycle": cycle,
             "description": description,
             "creditCardToken": credit_card_token,
-            "remoreIp": remote_ip,
+            "remoteIp": remote_ip,
         }
         return await self._request("POST", "/subscription", data=payload)
 

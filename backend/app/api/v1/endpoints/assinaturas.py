@@ -41,3 +41,27 @@ async def create_subscription(
         description=description,
         remote_ip=request.client.host,
     )
+
+
+@router.get("/", response_model=list[AssinaturaRead])
+async def list_subscription(
+    customer_id: Optional[str] = None,
+    billing_service: BillingService = Depends(get_billing_service),
+):
+    return await billing_service.list_assinaturas(customer_id=customer_id)
+
+
+@router.get("/{id}", response_model=AssinaturaRead)
+async def read_subscription(
+    id: int,
+    billing_service: BillingService = Depends(get_billing_service),
+):
+    return await billing_service.get_assinatura_by_id(id=id)
+
+
+@router.delete("/{id}", response_model=AssinaturaRead)
+async def cancel_subscription(
+    id: int,
+    billing_service: BillingService = Depends(get_billing_service),
+):
+    return await billing_service.cancel_assinatura(id=id)
