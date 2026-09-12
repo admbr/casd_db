@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, status
+from fastapi import APIRouter, Body, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from app.api.v1.deps import get_session
@@ -29,10 +29,10 @@ async def list_cartoes(
 
 @router.post("/", response_model=CartaoRead)
 async def tokenize_cartao(
-    customer_id: str,
-    card: CardInfo,
-    card_holder: CardHolderInfo,
     request: Request,
+    customer_id: str = Body(...),
+    card: CardInfo = Body(...),
+    card_holder: CardHolderInfo = Body(...),
     billing_service: BillingService = Depends(get_billing_service),
 ):
     if not request.client:

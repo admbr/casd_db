@@ -111,7 +111,7 @@ class BillingService:
         card: CardInfo,
         cardholder: CardHolderInfo,
         request: Request,
-    ) -> CartaoCreate:
+    ) -> Cartoes:
         if not request.client:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -135,10 +135,11 @@ class BillingService:
             await self.db_session.commit()
             await self.db_session.refresh(db_cartao)
         except Exception as e:
+            await self.db_session.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error: {e}"
             )
-        return cartao
+        return db_cartao
 
     async def create_subscription(
         self,

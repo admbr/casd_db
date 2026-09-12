@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from api.client import post
+from api.client import post_json
 
 
 def notify_payments(payment_ids: list[int]) -> Any:
-    return post("/notificar/", {"payments_id": payment_ids})
+    return post_json("/notificar/", {"payments_id": payment_ids})

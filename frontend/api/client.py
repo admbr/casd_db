@@ -22,7 +22,12 @@ class ApiError(Exception):
         super().__init__(message)
 
 
-def _request(method: str, path: str, params: Optional[dict] = None) -> Any:
+def _request(
+    method: str,
+    path: str,
+    params: Optional[dict] = None,
+    json_body: Optional[dict] = None,
+) -> Any:
     url = f"{settings.API_BASE_URL}{path}"
 
     # Drop empty/None params so the backend sees only what's meaningful,
@@ -31,7 +36,11 @@ def _request(method: str, path: str, params: Optional[dict] = None) -> Any:
 
     try:
         response = requests.request(
-            method, url, params=clean_params, timeout=settings.REQUEST_TIMEOUT
+            method,
+            url,
+            params=clean_params,
+            json=json_body,
+            timeout=settings.REQUEST_TIMEOUT,
         )
     except requests.exceptions.ConnectionError as exc:
         raise ApiError(
@@ -66,6 +75,10 @@ def get(path: str, params: Optional[dict] = None) -> Any:
 
 def post(path: str, params: Optional[dict] = None) -> Any:
     return _request("POST", path, params)
+
+
+def post_json(path: str, json_body: Optional[dict] = None) -> Any:
+    return _request("POST", path, json_body=json_body)
 
 
 def put(path: str, params: Optional[dict] = None) -> Any:

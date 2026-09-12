@@ -1,14 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select, text
+from sqlmodel import select, text, col
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.src.database import get_session
 from app.models.pagamento import Pagamentos_asaas, PagamentoCreate, PagamentoRead
+from app.models.cliente import Clientes
+from app.models.morador import Moradores
+from app.models.apartamento import Apartamentos
 from app.services.billingService import BillingService
 from app.api.v1.deps import get_billing_service
 from datetime import date
 from typing import Optional
 
 router = APIRouter()
+
+
+class PagamentoComResponsavel(PagamentoRead):
+    responsavel: Optional[str] = None
+    apartamento: Optional[str] = None
 
 
 @router.get("/", response_model=PagamentoRead)
@@ -47,15 +55,33 @@ async def delete_payment(
     return await billing_service.delete_payment_by_id(id=id)
 
 
-@router.get("/intervalo", response_model=list[PagamentoRead])
+@router.get("/intervalo", response_model=list[PagamentoComResponsavel])
 async def read_pagamentos(
     offset: int = 0,
     limit: int = 100,
     session: AsyncSession = Depends(get_session),
 ):
-    statement = select(Pagamentos_asaas).offset(offset).limit(limit)
+    statement = (
+        select(
+            Pagamentos_asaas, Moradores.nome, Apartamentos.numero, Apartamentos.bloco
+        )
+        .outerjoin(
+            Clientes, col(Clientes.cliente_id) == col(Pagamentos_asaas.customer_id)
+        )
+        .outerjoin(Moradores, col(Moradores.cpf) == col(Clientes.cpf_cnpj))
+        .outerjoin(Apartamentos, col(Apartamentos.id) == col(Moradores.apartamento_id))
+        .offset(offset)
+        .limit(limit)
+    )
     results = await session.execute(statement)
-    return results.scalars().all()
+
+    output = []
+    for pagamento, nome, numero, bloco in results.all():
+        data = pagamento.model_dump()
+        data["responsavel"] = nome
+        data["apartamento"] = f"{numero} - {bloco}" if numero and bloco else None
+        output.append(PagamentoComResponsavel(**data))
+    return output
 
 
 @router.get("/apartamento/", response_model=list[PagamentoRead])

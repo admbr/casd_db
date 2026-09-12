@@ -5,9 +5,21 @@ there is no list/get-by-id endpoint yet, so the frontend can't offer
 those views until the backend adds them.
 """
 
-from typing import Any
+from typing import Any, Optional
 
-from api.client import post
+from api.client import delete, get, post
+
+
+def list_assinaturas(customer_id: Optional[str] = None) -> Any:
+    return get("/assinaturas/", {"customer_id": customer_id})
+
+
+def get_assinatura(id: int) -> Any:
+    return get(f"/assinaturas/{id}")
+
+
+def cancel_assinatura(id: int) -> Any:
+    return delete(f"/assinaturas/{id}")
 
 
 def create_assinatura(

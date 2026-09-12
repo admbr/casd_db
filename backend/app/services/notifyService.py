@@ -3,7 +3,7 @@ import smtplib
 from collections.abc import Callable
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-import smtplib
+from sqlalchemy.orm import selectinload
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.models.pagamento import (
@@ -15,7 +15,7 @@ from app.models.pagamento import (
 from app.src.config import settings
 from app.models.morador import Moradores
 from app.models.cliente import Clientes
-from sqlmodel import select
+from sqlmodel import select, col
 from fastapi import HTTPException, status
 from typing import Any
 
@@ -28,7 +28,20 @@ class NotifyService:
         self,
         payments: list[Pagamentos_asaas],
     ) -> dict[str, Any]:
-        response = {"sent": 0, "errors": []}
+        response: dict[str, Any] = {"sent": 0, "errors": []}
+
+        if not payments:
+            return response
+
+        payment_ids = [p.id for p in payments]
+        statement = (
+            select(Pagamentos_asaas)
+            .where(col(Pagamentos_asaas.id).in_(payment_ids))
+            .options(
+                selectinload(Pagamentos_asaas.titular).selectinload(Clientes.dono)  # type: ignore[arg-type]
+            )
+        )
+        loaded = (await self.db_session.execute(statement)).scalars().all()
 
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             try:
@@ -43,7 +56,7 @@ class NotifyService:
                 )
                 return response
 
-            for payment in payments:
+            for payment in loaded:
                 emails: list[str] = []
                 cliente_titular = payment.titular
                 if not cliente_titular:
@@ -51,6 +64,7 @@ class NotifyService:
                         f"Client not found for payment {payment.asaas_id}"
                     )
                     continue
+
                 morador_lider = cliente_titular.dono
                 if not morador_lider:
                     if not cliente_titular.email:
@@ -65,24 +79,38 @@ class NotifyService:
                         Moradores.apartamento_id == ap_id
                     )
                     r = await self.db_session.execute(statement)
-                    r_emails = r.scalars().all()
-                    for email in r_emails:
-                        emails.append(email)
+                    emails.extend(r.scalars().all())
+
+                links = []
+                if payment.invoice_url:
+                    links.append(f"Fatura: {payment.invoice_url}")
+                if payment.bank_slip_url:
+                    links.append(f"Boleto: {payment.bank_slip_url}")
+                links_text = (
+                    "\n".join(links) if links else "Link de pagamento indisponível."
+                )
+
+                body = (
+                    f"Olá,\n\n"
+                    f"Você possui uma cobrança no valor de R$ {payment.value:.2f}, "
+                    f"com vencimento em {payment.due_date}.\n\n"
+                    f"{links_text}\n\n"
+                    f"Atenciosamente,\n{settings.sender_name}"
+                )
 
                 for email in emails:
                     try:
-                        subject = f"Cobrança CASD"
-                        html = payment.bank_slip_url if payment.bank_slip_url else "-"
                         msg = MIMEMultipart()
                         msg["From"] = f"{settings.sender_name} <{settings.gmail_user}>"
                         msg["To"] = email
-                        msg["Subject"] = subject
-                        msg.attach(MIMEText(html, "plain"))
+                        msg["Subject"] = "Cobrança CASD"
+                        msg.attach(MIMEText(body, "plain"))
                         server.sendmail(
                             settings.gmail_user,
                             str(email),
                             msg.as_string(),
                         )
+                        response["sent"] += 1
                     except Exception as e:
                         response["errors"].append(
                             f"Error sending email to {email}: {e}"

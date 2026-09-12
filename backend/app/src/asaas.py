@@ -51,7 +51,9 @@ class AsaasClient:
                 detail=f"Failed to communicate with Asaas gateway: {str(e)}",
             )
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def get_or_create_customer(
         self,
         nome: str,
@@ -84,7 +86,9 @@ class AsaasClient:
         client["criado"] = True
         return client
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def list_all_customers(self) -> list[ClienteCreate]:
         offset = 0
         clients = []
@@ -116,7 +120,9 @@ class AsaasClient:
             else:
                 return clients
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def list_all_payments(self) -> list[PagamentoCreate]:
         offset = 0
         payments = []
@@ -156,14 +162,18 @@ class AsaasClient:
             else:
                 return payments
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def del_payment_by_id(self, id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/payments/{id}")
 
     async def del_client_by_id(self, id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/customers/{id}")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def create_payment(
         self,
         payment_in: PagamentoCreate,
@@ -199,7 +209,9 @@ class AsaasClient:
             billing_type=payment["billingType"],
         )
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16))
+    @retry(
+        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
+    )
     async def tokenize_credit_card(
         self,
         customer_id: str,
