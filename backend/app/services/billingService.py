@@ -43,8 +43,21 @@ class BillingService:
     async def fetch_all_payments_from_asaas(self) -> list[PagamentoCreate]:
         return await self.asaas_client.list_all_payments()
 
-    async def delete_payment_by_id(self, id: str) -> dict[str, Any]:
-        return await self.asaas_client.del_payment_by_id(id)
+    async def delete_payment_by_id(self, id: int) -> dict[str, Any]:
+        payment = await self.get_payment_by_id(id)
+
+        if not payment.asaas_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Pagamento has no Asaas id",
+            )
+
+        response = await self.asaas_client.del_payment_by_id(payment.asaas_id)
+
+        await self.db_session.delete(payment)
+        await self.db_session.commit()
+
+        return response
 
     async def create_payment(
         self,

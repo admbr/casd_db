@@ -49,7 +49,7 @@ async def create_payment(
 
 @router.delete("/")
 async def delete_payment(
-    id: str,
+    id: int,
     billing_service: BillingService = Depends(get_billing_service),
 ):
     return await billing_service.delete_payment_by_id(id=id)
