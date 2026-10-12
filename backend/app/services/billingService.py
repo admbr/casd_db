@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel, Field
 from app.models.pagamento import (
     Pagamentos_asaas,
@@ -24,6 +25,10 @@ from app.models.assinatura import (
     AssinaturaRead,
     Assinaturas,
 )
+
+
+def _parse_date(value: str | None) -> date | None:
+    return date.fromisoformat(value) if value else None
 
 
 class BillingService:
@@ -242,9 +247,12 @@ class BillingService:
             return {"handled": False, "reason": "payment not found locally"}
 
         pagamento.status = payment.get("status", pagamento.status)
-        pagamento.payment_date = payment.get("paymentDate") or pagamento.payment_date
+        pagamento.payment_date = (
+            _parse_date(payment.get("paymentDate")) or pagamento.payment_date
+        )
         pagamento.client_payment_date = (
-            payment.get("clientPaymentDate") or pagamento.client_payment_date
+            _parse_date(payment.get("clientPaymentDate"))
+            or pagamento.client_payment_date
         )
         pagamento.net_value = payment.get("netValue", pagamento.net_value)
         pagamento.invoice_url = payment.get("invoiceUrl", pagamento.invoice_url)
