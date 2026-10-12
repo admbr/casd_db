@@ -12,12 +12,16 @@ class MoradorService:
     async def search_morador(self, q: str, limit: int = 20) -> Sequence[Moradores]:
         if len(q.strip()) < 2:
             return []
-        term = f"%{q.strip}%"
-        statement = select(Moradores).where(
-            or_(
-                col(Moradores.nome).ilike(term),
-                col(Moradores.cpf).ilike(term),
-            ).limit(limit)
+        term = f"%{q.strip()}%"
+        statement = (
+            select(Moradores)
+            .where(
+                or_(
+                    col(Moradores.nome).ilike(term),
+                    col(Moradores.cpf).ilike(term),
+                )
+            )
+            .limit(limit)
         )
         results = await self.db_session.execute(statement)
         return results.scalars().all()
