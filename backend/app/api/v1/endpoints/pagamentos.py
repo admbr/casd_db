@@ -84,11 +84,6 @@ async def read_pagamentos(
     return output
 
 
-@router.get("/apartamento/", response_model=list[PagamentoRead])
-async def read_pagamentos_from_ap_id():
-    return
-
-
 @router.put("/update_all")
 async def update_pagamentos(
     billing_service: BillingService = Depends(get_billing_service),
