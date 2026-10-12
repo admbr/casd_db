@@ -11,3 +11,4 @@ tenacity
 jinja2
 plotly
 requests
+greenlet
