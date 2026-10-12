@@ -110,6 +110,18 @@ class ClientService:
         return cliente
 
     async def delete_client_by_id(self, id: int) -> dict[str, Any]:
-        return await self.asaas_client.del_client_by_id(
-            (await self.fetch_client_by_id(id)).cliente_id
-        )
+        statement = select(Clientes).where(Clientes.id == id)
+        cliente = (await self.db_session.execute(statement)).scalars().first()
+        if not cliente:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cliente not found",
+            )
+
+        response = await self.asaas_client.del_client_by_id(cliente.cliente_id)
+
+        cliente.deleted = True
+        self.db_session.add(cliente)
+        await self.db_session.commit()
+
+        return response

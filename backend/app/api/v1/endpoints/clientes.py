@@ -23,6 +23,7 @@ async def search_clientes(
     term = f"%{q.strip()}%"
     statement = (
         select(Clientes)
+        .where(col(Clientes.deleted).is_(False))
         .where(or_(col(Clientes.name).ilike(term), col(Clientes.cpf_cnpj).ilike(term)))
         .limit(limit)
     )
