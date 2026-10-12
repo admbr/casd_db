@@ -1,5 +1,10 @@
 from typing import Optional, Any
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 import httpx
 from fastapi import HTTPException, status
 from app.models.cliente import ClienteCreate
@@ -9,12 +14,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_RETRYABLE_METHODS = {"GET", "DELETE"}
+
+
+def _is_transient(exc: BaseException) -> bool:
+    return isinstance(exc, HTTPException) and (
+        exc.status_code >= 500 or exc.status_code == 429
+    )
+
 
 class AsaasClient:
     def __init__(self, asaas_client: httpx.AsyncClient):
         self.client = asaas_client
 
     async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        data: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        if method.upper() not in _RETRYABLE_METHODS:
+            return await self._send(method, endpoint, data)
+
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(min=1, max=16),
+            retry=retry_if_exception(_is_transient),
+            reraise=True,
+        ):
+            with attempt:
+                return await self._send(method, endpoint, data)
+        raise AssertionError("unreachable")
+
+    async def _send(
         self,
         method: str,
         endpoint: str,
@@ -51,9 +83,6 @@ class AsaasClient:
                 detail=f"Failed to communicate with Asaas gateway: {str(e)}",
             )
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def get_or_create_customer(
         self,
         nome: str,
@@ -86,9 +115,6 @@ class AsaasClient:
         client["criado"] = True
         return client
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def list_all_customers(self) -> list[ClienteCreate]:
         offset = 0
         clients = []
@@ -120,9 +146,6 @@ class AsaasClient:
             else:
                 return clients
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def list_all_payments(self) -> list[PagamentoCreate]:
         offset = 0
         payments = []
@@ -162,18 +185,12 @@ class AsaasClient:
             else:
                 return payments
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def del_payment_by_id(self, id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/payments/{id}")
 
     async def del_client_by_id(self, id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"/customers/{id}")
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def create_payment(
         self,
         payment_in: PagamentoCreate,
@@ -209,9 +226,6 @@ class AsaasClient:
             billing_type=payment["billingType"],
         )
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=16), reraise=True
-    )
     async def tokenize_credit_card(
         self,
         customer_id: str,
