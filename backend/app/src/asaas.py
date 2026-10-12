@@ -247,7 +247,7 @@ class AsaasClient:
             "creditCardToken": credit_card_token,
             "remoteIp": remote_ip,
         }
-        return await self._request("POST", "/subscription", data=payload)
+        return await self._request("POST", "/subscriptions", data=payload)
 
     async def cancel_subscription(self, subscription_id: str) -> dict[str, Any]:
         return await self._request("DELETE", f"subscriptions/{subscription_id}")
