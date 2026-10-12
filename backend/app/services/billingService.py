@@ -27,6 +27,9 @@ from app.models.assinatura import (
 )
 
 
+_UPSERT_BATCH_SIZE = 500
+
+
 def _parse_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value else None
 
@@ -103,17 +106,19 @@ class BillingService:
             valid_payments.append(data)
 
         if valid_payments:
-            stmt = pg_insert(Pagamentos_asaas).values(valid_payments)
-            update_cols = {
-                col: stmt.excluded[col]
-                for col in valid_payments[0].keys()
-                if col != "asaas_id"
-            }
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["asaas_id"],
-                set_=update_cols,
-            )
-            await self.db_session.execute(stmt)
+            for start in range(0, len(valid_payments), _UPSERT_BATCH_SIZE):
+                batch = valid_payments[start : start + _UPSERT_BATCH_SIZE]
+                stmt = pg_insert(Pagamentos_asaas).values(batch)
+                update_cols = {
+                    col: stmt.excluded[col]
+                    for col in batch[0].keys()
+                    if col != "asaas_id"
+                }
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["asaas_id"],
+                    set_=update_cols,
+                )
+                await self.db_session.execute(stmt)
             await self.db_session.commit()
 
         return {

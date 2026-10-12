@@ -14,6 +14,8 @@ from sqlmodel import text, select
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
 
+_UPSERT_BATCH_SIZE = 500
+
 
 class ClientService:
     def __init__(self, asaas_client: AsaasClient, db_session: AsyncSession):
@@ -63,19 +65,20 @@ class ClientService:
 
         rows = [client.model_dump() for client in clients]
 
-        statement = pg_insert(Clientes).values(rows)
-        update_cols = {
-            col: statement.excluded[col]
-            for col in rows[0].keys()
-            if col not in ("client_id", "morador_id")
-        }
+        for start in range(0, len(rows), _UPSERT_BATCH_SIZE):
+            batch = rows[start : start + _UPSERT_BATCH_SIZE]
+            statement = pg_insert(Clientes).values(batch)
+            update_cols = {
+                col: statement.excluded[col]
+                for col in batch[0].keys()
+                if col not in ("cliente_id", "morador_id")
+            }
+            statement = statement.on_conflict_do_update(
+                index_elements=["cliente_id"],
+                set_=update_cols,
+            )
+            await self.db_session.execute(statement)
 
-        statement = statement.on_conflict_do_update(
-            index_elements=["cliente_id"],
-            set_=update_cols,
-        )
-
-        await self.db_session.execute(statement)
         await self.db_session.commit()
 
         return {"synced": len(clients), "status": "ok"}
