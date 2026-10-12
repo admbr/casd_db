@@ -85,15 +85,22 @@ class ClientService:
             nome=name,
             cpf_cnpj=cpf,
         )
-        cliente = Clientes(
-            name=response["name"],
-            deleted=response["deleted"],
-            date_created=response["dateCreated"],
-            notification_disabled=response["notificationDisabled"],
-            cliente_id=response["id"],
-            email=response["email"],
-            morador_id=None,
-            cpf_cnpj=response["cpfCnpj"],
+        statement = select(Clientes).where(Clientes.cliente_id == response["id"])
+        cliente = (await self.db_session.execute(statement)).scalars().first()
+        if cliente:
+            return cliente
+
+        cliente = Clientes.model_validate(
+            {
+                "name": response["name"],
+                "deleted": response["deleted"],
+                "date_created": response["dateCreated"],
+                "notification_disabled": response["notificationDisabled"],
+                "cliente_id": response["id"],
+                "email": response["email"],
+                "morador_id": None,
+                "cpf_cnpj": response["cpfCnpj"],
+            }
         )
 
         self.db_session.add(cliente)
